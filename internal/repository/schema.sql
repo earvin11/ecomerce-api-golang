@@ -1,0 +1,28 @@
+CREATE TABLE IF NOT EXISTS categories (
+    id   SERIAL PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS products (
+    id       SERIAL PRIMARY KEY,
+    name     TEXT NOT NULL,
+    price    BIGINT NOT NULL DEFAULT 0,
+    category INT NOT NULL REFERENCES categories (id) ON DELETE RESTRICT,
+    in_stock BOOLEAN NOT NULL DEFAULT FALSE,
+    quantity INT NOT NULL DEFAULT 0,
+    img      TEXT
+);
+
+CREATE TABLE IF NOT EXISTS roles (
+    id   SERIAL PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS users (
+    id       SERIAL PRIMARY KEY,
+    email    TEXT NOT NULL UNIQUE,
+    password TEXT NOT NULL,
+    username TEXT NOT NULL UNIQUE,
+    role_id  INT NOT NULL REFERENCES roles (id) ON DELETE RESTRICT,
+    photo    TEXT
+);
