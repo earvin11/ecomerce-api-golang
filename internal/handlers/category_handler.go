@@ -27,7 +27,7 @@ func (h *CategoryHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	body.Name = strings.TrimSpace(body.Name)
 
-	category, err := h.useCases.Create(r.Context(), &body)
+	category, err := h.useCases.Create(r.Context(), &body, currentUserID(r))
 	if err != nil {
 		resolveError(w, err)
 		return
@@ -82,7 +82,7 @@ func (h *CategoryHandler) Update(w http.ResponseWriter, r *http.Request) {
 		body.Name = &trimmed
 	}
 
-	category, err := h.useCases.Update(r.Context(), id, &body)
+	category, err := h.useCases.Update(r.Context(), id, &body, currentUserID(r))
 	if err != nil {
 		resolveError(w, err)
 		return

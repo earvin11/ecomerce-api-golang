@@ -15,8 +15,8 @@ func NewCategoryUseCases(categoryRepository repository.CategoryRepository) *Cate
 	return &CategoryUseCases{categoryRepository: categoryRepository}
 }
 
-func (u *CategoryUseCases) Create(ctx context.Context, data *domain.Category) (*domain.Category, error) {
-	return u.categoryRepository.Create(ctx, data)
+func (u *CategoryUseCases) Create(ctx context.Context, data *domain.Category, actorID int) (*domain.Category, error) {
+	return u.categoryRepository.Create(ctx, data, actorID)
 }
 
 func (u *CategoryUseCases) GetAll(ctx context.Context, page, pageSize int) ([]*domain.Category, int, error) {
@@ -27,8 +27,8 @@ func (u *CategoryUseCases) GetById(ctx context.Context, id int) (*domain.Categor
 	return u.categoryRepository.GetById(ctx, id)
 }
 
-func (u *CategoryUseCases) Update(ctx context.Context, id int, data *domain.UpdateCategory) (*domain.Category, error) {
-	return u.categoryRepository.Update(ctx, id, data)
+func (u *CategoryUseCases) Update(ctx context.Context, id int, data *domain.UpdateCategory, actorID int) (*domain.Category, error) {
+	return u.categoryRepository.Update(ctx, id, data, actorID)
 }
 
 func (u *CategoryUseCases) Delete(ctx context.Context, id int) error {

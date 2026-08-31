@@ -22,6 +22,9 @@ type Config struct {
 	JWTSecret         string
 	JWTAccessTTL      time.Duration
 	JWTRefreshTTL     time.Duration
+	WalletAPIURL      string
+	WalletAPITimeout  time.Duration
+	WalletCurrency    string
 	SeedAdminUsername string
 	SeedAdminEmail    string
 	SeedAdminPassword string
@@ -43,6 +46,9 @@ func Load() (*Config, error) {
 		JWTSecret:         getEnv("JWT_SECRET", ""),
 		JWTAccessTTL:      getDurationEnv("JWT_ACCESS_TTL", 30*time.Minute),
 		JWTRefreshTTL:     getDurationEnv("JWT_REFRESH_TTL", 720*time.Hour),
+		WalletAPIURL:      getEnv("WALLET_API_URL", ""),
+		WalletAPITimeout:  getDurationEnv("WALLET_API_TIMEOUT", 5*time.Second),
+		WalletCurrency:    getEnv("WALLET_CURRENCY", "USD"),
 		SeedAdminUsername: getEnv("SEED_ADMIN_USERNAME", ""),
 		SeedAdminEmail:    getEnv("SEED_ADMIN_EMAIL", ""),
 		SeedAdminPassword: getEnv("SEED_ADMIN_PASSWORD", ""),
@@ -53,6 +59,9 @@ func Load() (*Config, error) {
 	}
 	if cfg.JWTSecret == "" {
 		return nil, fmt.Errorf("config: JWT_SECRET is required (set a long random value)")
+	}
+	if cfg.WalletAPIURL == "" {
+		return nil, fmt.Errorf("config: WALLET_API_URL is required (external wallet confirmation service)")
 	}
 	set := 0
 	for _, v := range []string{cfg.SeedAdminUsername, cfg.SeedAdminEmail, cfg.SeedAdminPassword} {

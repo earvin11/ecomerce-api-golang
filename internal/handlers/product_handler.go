@@ -27,7 +27,7 @@ func (h *ProductHandler) Create(w http.ResponseWriter, r *http.Request) {
 	body.Name = strings.TrimSpace(body.Name)
 	body.Img = normalizeLink(body.Img)
 
-	product, err := h.useCases.Create(r.Context(), &body)
+	product, err := h.useCases.Create(r.Context(), &body, currentUserID(r))
 	if err != nil {
 		resolveError(w, err)
 		return
@@ -97,7 +97,7 @@ func (h *ProductHandler) Update(w http.ResponseWriter, r *http.Request) {
 		body.Img.Value = normalizeLink(body.Img.Value)
 	}
 
-	product, err := h.useCases.Update(r.Context(), id, &body)
+	product, err := h.useCases.Update(r.Context(), id, &body, currentUserID(r))
 	if err != nil {
 		resolveError(w, err)
 		return

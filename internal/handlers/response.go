@@ -85,6 +85,10 @@ func resolveError(w http.ResponseWriter, err error) {
 		respondError(w, http.StatusBadRequest, "Invalid data", err.Error())
 	case errors.Is(err, domain.ErrUnauthorized):
 		respondError(w, http.StatusUnauthorized, "Unauthorized", err.Error())
+	case errors.Is(err, domain.ErrPaymentDeclined):
+		respondError(w, http.StatusPaymentRequired, "Payment declined", err.Error())
+	case errors.Is(err, domain.ErrWalletUnavailable):
+		respondError(w, http.StatusBadGateway, "Wallet service error", err.Error())
 	default:
 		respondError(w, http.StatusInternalServerError, "Internal server error", err.Error())
 	}

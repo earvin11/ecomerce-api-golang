@@ -2,10 +2,24 @@ package domain
 
 type RoleNames map[string]bool
 
+const (
+	RoleAdmin    = "ADMIN"
+	RoleEditor   = "EDITOR"
+	RoleCustomer = "CUSTOMER"
+)
+
+func (r RoleNames) Has(name string) bool {
+	return r[name]
+}
+
 var AllowedRoles = RoleNames{
-	"ADMIN":    true,
-	"CUSTOMER": true,
-	"EDITOR":   true,
+	RoleAdmin:    true,
+	RoleCustomer: true,
+	RoleEditor:   true,
+}
+
+func IsDiscountedRole(role string) bool {
+	return role == RoleAdmin || role == RoleEditor
 }
 
 type Role struct {

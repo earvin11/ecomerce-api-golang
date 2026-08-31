@@ -15,6 +15,7 @@ import (
 	"ecomerce-api/internal/handlers"
 	"ecomerce-api/internal/repository"
 	usecases "ecomerce-api/internal/use_cases"
+	"ecomerce-api/internal/wallet"
 )
 
 func main() {
@@ -58,11 +59,15 @@ func main() {
 	productRepo := repository.NewProductRepository(pool)
 	roleRepo := repository.NewRoleRepository(pool)
 	userRepo := repository.NewUserRepository(pool)
+	purchaseRepo := repository.NewPurchaseRepository(pool)
 
 	categoryUseCases := usecases.NewCategoryUseCases(categoryRepo)
 	productUseCases := usecases.NewProductUseCases(productRepo)
 	roleUseCases := usecases.NewRoleUseCases(roleRepo)
 	userUseCases := usecases.NewUserUseCases(userRepo)
+
+	walletClient := wallet.NewHTTPClient(wallet.Config{BaseURL: cfg.WalletAPIURL, Timeout: cfg.WalletAPITimeout})
+	purchaseUseCases := usecases.NewPurchaseUseCases(purchaseRepo, productRepo, walletClient, cfg.WalletCurrency)
 
 	tokenService := auth.NewTokenService(cfg.JWTSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
 	authUseCases := usecases.NewAuthUseCases(userRepo, tokenService)
@@ -72,9 +77,10 @@ func main() {
 	roleHandler := handlers.NewRoleHandler(roleUseCases)
 	userHandler := handlers.NewUserHandler(userUseCases)
 	authHandler := handlers.NewAuthHandler(authUseCases)
+	purchaseHandler := handlers.NewPurchaseHandler(purchaseUseCases)
 	authMiddleware := handlers.NewAuthMiddleware(tokenService)
 
-	handler := handlers.NewHandler(categoryHandler, productHandler, roleHandler, userHandler, authHandler, authMiddleware, pool)
+	handler := handlers.NewHandler(categoryHandler, productHandler, roleHandler, userHandler, authHandler, purchaseHandler, authMiddleware, pool)
 
 	server := &http.Server{
 		Addr:         ":" + cfg.ServerPort,

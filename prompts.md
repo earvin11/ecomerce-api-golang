@@ -45,3 +45,12 @@ Necesito manejar la sesion de los usuarios con jwt con las siguientes reglas:
 Quiero que alteres dos entidades:
  - Product debe tener campo img que sera un string con un link a una imagen del producto, puede ser null
  - User debe tener photo que tambien seria un string al link de una foto de perfil que tambien puede ser null
+
+
+Quiero que actues como un experto en backend, lenguaje go, clean architecture y design patterns tomando las mejores decisiones para los casos correspondientes:
+
+1. Las entidades product y category solo pueden ser editadas o creadas por usuarios con roles admin o editor, debe guardarse evidencia de que usuario creo o edito cualquier entidad con la fecha
+
+2. La compra de algun producto debe pasar por una api externa de tipo wallet para poder confirmar la compra y agregarsela al usuario, quiero que abstraigas la logica de esta llamada a la api externa, se maneja hasta ahora una peticion tipo POST a la espera de como seria el body y las distintas responses
+
+3. Los usuarios tipo admin y editor pueden comprar productos y recibir siempre un 10% de descuento del precio

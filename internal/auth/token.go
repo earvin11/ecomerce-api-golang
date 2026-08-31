@@ -9,6 +9,7 @@ import (
 )
 
 type Claims struct {
+	UserID   int    `json:"user_id"`
 	Username string `json:"username"`
 	Role     string `json:"role"`
 	jwt.RegisteredClaims
@@ -47,6 +48,7 @@ func (s *TokenService) ParseRefresh(token string) (*domain.TokenClaims, error) {
 func (s *TokenService) sign(claims domain.TokenClaims, ttl time.Duration) (string, error) {
 	now := time.Now()
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
+		UserID:   claims.UserID,
 		Username: claims.Username,
 		Role:     claims.Role,
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -66,5 +68,5 @@ func (s *TokenService) parse(token string) (*domain.TokenClaims, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &domain.TokenClaims{Username: claims.Username, Role: claims.Role}, nil
+	return &domain.TokenClaims{UserID: claims.UserID, Username: claims.Username, Role: claims.Role}, nil
 }

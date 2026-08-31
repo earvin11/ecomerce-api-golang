@@ -3,6 +3,8 @@ package handlers
 import (
 	"context"
 	"net/http"
+
+	"ecomerce-api/internal/domain"
 )
 
 type HealthChecker interface {
@@ -15,17 +17,19 @@ type Handler struct {
 	role          *RoleHandler
 	user          *UserHandler
 	auth          *AuthHandler
+	purchase      *PurchaseHandler
 	middleware    *AuthMiddleware
 	healthChecker HealthChecker
 }
 
-func NewHandler(category *CategoryHandler, product *ProductHandler, role *RoleHandler, user *UserHandler, auth *AuthHandler, middleware *AuthMiddleware, healthChecker HealthChecker) *Handler {
+func NewHandler(category *CategoryHandler, product *ProductHandler, role *RoleHandler, user *UserHandler, auth *AuthHandler, purchase *PurchaseHandler, middleware *AuthMiddleware, healthChecker HealthChecker) *Handler {
 	return &Handler{
 		category:      category,
 		product:       product,
 		role:          role,
 		user:          user,
 		auth:          auth,
+		purchase:      purchase,
 		middleware:    middleware,
 		healthChecker: healthChecker,
 	}
@@ -38,17 +42,22 @@ func (h *Handler) Router() http.Handler {
 	mux.HandleFunc("POST /api/v1/auth/login", h.auth.Login)
 	mux.HandleFunc("POST /api/v1/auth/refresh", h.auth.Refresh)
 
+	adminOrEditor := h.middleware.RequireRoles(domain.RoleAdmin, domain.RoleEditor)
+
 	mux.Handle("GET /api/v1/categories", h.middleware.Require(h.category.GetAll))
-	mux.Handle("POST /api/v1/categories", h.middleware.Require(h.category.Create))
+	mux.Handle("POST /api/v1/categories", adminOrEditor(h.category.Create))
 	mux.Handle("GET /api/v1/categories/{id}", h.middleware.Require(h.category.GetById))
-	mux.Handle("PATCH /api/v1/categories/{id}", h.middleware.Require(h.category.Update))
-	mux.Handle("DELETE /api/v1/categories/{id}", h.middleware.Require(h.category.Delete))
+	mux.Handle("PATCH /api/v1/categories/{id}", adminOrEditor(h.category.Update))
+	mux.Handle("DELETE /api/v1/categories/{id}", adminOrEditor(h.category.Delete))
 
 	mux.Handle("GET /api/v1/products", h.middleware.Require(h.product.GetAll))
-	mux.Handle("POST /api/v1/products", h.middleware.Require(h.product.Create))
+	mux.Handle("POST /api/v1/products", adminOrEditor(h.product.Create))
 	mux.Handle("GET /api/v1/products/{id}", h.middleware.Require(h.product.GetById))
-	mux.Handle("PATCH /api/v1/products/{id}", h.middleware.Require(h.product.Update))
-	mux.Handle("DELETE /api/v1/products/{id}", h.middleware.Require(h.product.Delete))
+	mux.Handle("PATCH /api/v1/products/{id}", adminOrEditor(h.product.Update))
+	mux.Handle("DELETE /api/v1/products/{id}", adminOrEditor(h.product.Delete))
+
+	mux.Handle("POST /api/v1/purchases", h.middleware.Require(h.purchase.Create))
+	mux.Handle("GET /api/v1/purchases", h.middleware.Require(h.purchase.GetAll))
 
 	mux.Handle("GET /api/v1/roles", h.middleware.Require(h.role.GetAll))
 	mux.Handle("POST /api/v1/roles", h.middleware.Require(h.role.Create))

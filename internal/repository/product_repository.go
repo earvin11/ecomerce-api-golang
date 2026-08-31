@@ -14,12 +14,15 @@ import (
 )
 
 type ProductRepository interface {
-	Create(ctx context.Context, data *domain.Product) (*domain.Product, error)
+	Create(ctx context.Context, data *domain.Product, actorID int) (*domain.Product, error)
 	GetAll(ctx context.Context, page, pageSize int) ([]*domain.Product, int, error)
 	GetById(ctx context.Context, id int) (*domain.Product, error)
-	Update(ctx context.Context, id int, data *domain.UpdateProduct) (*domain.Product, error)
+	Update(ctx context.Context, id int, data *domain.UpdateProduct, actorID int) (*domain.Product, error)
 	Delete(ctx context.Context, id int) error
 }
+
+const selectProduct = `SELECT id, name, price, category, in_stock, quantity, img, created_by, created_at, updated_by, updated_at
+                       FROM products`
 
 type productRepository struct {
 	db *pgxpool.Pool
@@ -29,20 +32,33 @@ func NewProductRepository(db *pgxpool.Pool) ProductRepository {
 	return &productRepository{db: db}
 }
 
-func (r *productRepository) Create(ctx context.Context, data *domain.Product) (*domain.Product, error) {
-	const q = `INSERT INTO products (name, price, category, in_stock, quantity, img)
-	           VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, name, price, category, in_stock, quantity, img`
+func scanProduct(row pgx.Row) (*domain.Product, error) {
+	var p domain.Product
 	var price int64
-	row := r.db.QueryRow(ctx, q, data.Name, int64(data.Price), data.Category, data.InStock, data.Quantity, data.Img)
-	if err := row.Scan(&data.ID, &data.Name, &price, &data.Category, &data.InStock, &data.Quantity, &data.Img); err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23503" {
-			return nil, fmt.Errorf("%w: referenced category does not exist", domain.ErrInvalidData)
-		}
-		return nil, fmt.Errorf("product repository create: %w", err)
+	if err := row.Scan(&p.ID, &p.Name, &price, &p.Category, &p.InStock, &p.Quantity, &p.Img, &p.CreatedBy, &p.CreatedAt, &p.UpdatedBy, &p.UpdatedAt); err != nil {
+		return nil, err
 	}
-	data.Price = domain.Cents(price)
-	return data, nil
+	p.Price = domain.Cents(price)
+	return &p, nil
+}
+
+func handleProductConstraint(err error, action string) error {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23503" {
+		return fmt.Errorf("%w: referenced category does not exist", domain.ErrInvalidData)
+	}
+	return fmt.Errorf("product repository %s: %w", action, err)
+}
+
+func (r *productRepository) Create(ctx context.Context, data *domain.Product, actorID int) (*domain.Product, error) {
+	const q = `INSERT INTO products (name, price, category, in_stock, quantity, img, created_by, created_at, updated_by, updated_at)
+	           VALUES ($1, $2, $3, $4, $5, $6, $7, now(), $8, now())
+	           RETURNING id, name, price, category, in_stock, quantity, img, created_by, created_at, updated_by, updated_at`
+	p, err := scanProduct(r.db.QueryRow(ctx, q, data.Name, int64(data.Price), data.Category, data.InStock, data.Quantity, data.Img, actorID, actorID))
+	if err != nil {
+		return nil, handleProductConstraint(err, "create")
+	}
+	return p, nil
 }
 
 func (r *productRepository) GetAll(ctx context.Context, page, pageSize int) ([]*domain.Product, int, error) {
@@ -52,8 +68,7 @@ func (r *productRepository) GetAll(ctx context.Context, page, pageSize int) ([]*
 		return nil, 0, fmt.Errorf("product repository count: %w", err)
 	}
 
-	const q = `SELECT id, name, price, category, in_stock, quantity, img
-	           FROM products ORDER BY id LIMIT $1 OFFSET $2`
+	const q = selectProduct + ` ORDER BY id LIMIT $1 OFFSET $2`
 	rows, err := r.db.Query(ctx, q, pageSize, (page-1)*pageSize)
 	if err != nil {
 		return nil, 0, fmt.Errorf("product repository list: %w", err)
@@ -62,13 +77,11 @@ func (r *productRepository) GetAll(ctx context.Context, page, pageSize int) ([]*
 
 	products := make([]*domain.Product, 0)
 	for rows.Next() {
-		var p domain.Product
-		var price int64
-		if err := rows.Scan(&p.ID, &p.Name, &price, &p.Category, &p.InStock, &p.Quantity, &p.Img); err != nil {
+		p, err := scanProduct(rows)
+		if err != nil {
 			return nil, 0, fmt.Errorf("product repository scan: %w", err)
 		}
-		p.Price = domain.Cents(price)
-		products = append(products, &p)
+		products = append(products, p)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, 0, fmt.Errorf("product repository iterate: %w", err)
@@ -78,23 +91,19 @@ func (r *productRepository) GetAll(ctx context.Context, page, pageSize int) ([]*
 }
 
 func (r *productRepository) GetById(ctx context.Context, id int) (*domain.Product, error) {
-	const q = `SELECT id, name, price, category, in_stock, quantity, img FROM products WHERE id = $1`
-	var p domain.Product
-	var price int64
-	err := r.db.QueryRow(ctx, q, id).Scan(&p.ID, &p.Name, &price, &p.Category, &p.InStock, &p.Quantity, &p.Img)
+	p, err := scanProduct(r.db.QueryRow(ctx, selectProduct+` WHERE id = $1`, id))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, fmt.Errorf("%w: product %d", domain.ErrNotFound, id)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("product repository get by id: %w", err)
 	}
-	p.Price = domain.Cents(price)
-	return &p, nil
+	return p, nil
 }
 
-func (r *productRepository) Update(ctx context.Context, id int, data *domain.UpdateProduct) (*domain.Product, error) {
-	sets := make([]string, 0, 5)
-	args := make([]any, 0, 6)
+func (r *productRepository) Update(ctx context.Context, id int, data *domain.UpdateProduct, actorID int) (*domain.Product, error) {
+	sets := make([]string, 0, 6)
+	args := make([]any, 0, 7)
 	idx := 1
 
 	if data.Name != nil {
@@ -132,25 +141,23 @@ func (r *productRepository) Update(ctx context.Context, id int, data *domain.Upd
 		return r.GetById(ctx, id)
 	}
 
+	sets = append(sets, fmt.Sprintf("updated_by = $%d", idx))
+	args = append(args, actorID)
+	idx++
+	sets = append(sets, "updated_at = now()")
+
 	q := fmt.Sprintf(`UPDATE products SET %s WHERE id = $%d
-	                  RETURNING id, name, price, category, in_stock, quantity, img`, strings.Join(sets, ", "), idx)
+	                  RETURNING id, name, price, category, in_stock, quantity, img, created_by, created_at, updated_by, updated_at`, strings.Join(sets, ", "), idx)
 	args = append(args, id)
 
-	var p domain.Product
-	var price int64
-	err := r.db.QueryRow(ctx, q, args...).Scan(&p.ID, &p.Name, &price, &p.Category, &p.InStock, &p.Quantity, &p.Img)
+	p, err := scanProduct(r.db.QueryRow(ctx, q, args...))
 	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23503" {
-			return nil, fmt.Errorf("%w: referenced category does not exist", domain.ErrInvalidData)
-		}
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, fmt.Errorf("%w: product %d", domain.ErrNotFound, id)
 		}
-		return nil, fmt.Errorf("product repository update: %w", err)
+		return nil, handleProductConstraint(err, "update")
 	}
-	p.Price = domain.Cents(price)
-	return &p, nil
+	return p, nil
 }
 
 func (r *productRepository) Delete(ctx context.Context, id int) error {

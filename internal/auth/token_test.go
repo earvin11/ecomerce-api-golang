@@ -9,7 +9,7 @@ import (
 
 func TestTokenServiceRoundTrip(t *testing.T) {
 	svc := NewTokenService("test-secret", 30*time.Minute, 720*time.Hour)
-	claims := domain.TokenClaims{Username: "admin", Role: "ADMIN"}
+	claims := domain.TokenClaims{UserID: 7, Username: "admin", Role: "ADMIN"}
 
 	access, err := svc.SignAccess(claims)
 	if err != nil {
@@ -19,7 +19,7 @@ func TestTokenServiceRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse access: %v", err)
 	}
-	if got.Username != claims.Username || got.Role != claims.Role {
+	if got.UserID != claims.UserID || got.Username != claims.Username || got.Role != claims.Role {
 		t.Errorf("access claims: got %+v, want %+v", got, claims)
 	}
 
@@ -31,7 +31,7 @@ func TestTokenServiceRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse refresh: %v", err)
 	}
-	if gotRefresh.Username != claims.Username || gotRefresh.Role != claims.Role {
+	if gotRefresh.UserID != claims.UserID || gotRefresh.Username != claims.Username || gotRefresh.Role != claims.Role {
 		t.Errorf("refresh claims: got %+v, want %+v", gotRefresh, claims)
 	}
 }

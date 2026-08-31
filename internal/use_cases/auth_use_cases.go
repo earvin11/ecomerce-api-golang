@@ -54,7 +54,7 @@ func (u *AuthUseCases) Refresh(ctx context.Context, refreshToken string) (*domai
 }
 
 func (u *AuthUseCases) issuePair(user *domain.User) (*domain.TokenPair, error) {
-	claims := domain.TokenClaims{Username: user.Username, Role: user.Role.Name}
+	claims := domain.TokenClaims{UserID: user.ID, Username: user.Username, Role: user.Role.Name}
 
 	access, err := u.tokens.SignAccess(claims)
 	if err != nil {
